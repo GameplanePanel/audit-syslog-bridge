@@ -1,5 +1,7 @@
 # audit-syslog-bridge — Specification
 
+> This repository is checked out as the `audit-syslog-bridge/` submodule of [GameplanePanel/Gameplane](https://github.com/GameplanePanel/Gameplane). Paths such as `docs/`, `operator/`, `api/`, `charts/` and `web/` below refer to that repository.
+
 **Status:** pre-v1 (v0.4.1)  
 **Module / package:** `github.com/GameplanePanel/gameplane/audit-syslog-bridge`
 
@@ -53,7 +55,7 @@ Single flat package (`main`): `main.go` (relay + config + server logic), `bridge
 
 ## Dependencies
 
-**Go 1.27** (workspace-linked to `go.work` alongside `operator/`, `api/`, `agent/`, etc.)
+**Go 1.27**, own `go.mod` (not part of Gameplane's `go.work`)
 
 **Imports:** stdlib only (`crypto/tls`, `net`, `net/http`, `log/slog`, `sync`, `time`, `context`, etc.). No external dependencies.
 
@@ -70,7 +72,7 @@ Single flat package (`main`): `main.go` (relay + config + server logic), `bridge
 
 ## References
 
-- `audit-syslog-bridge/README.md` — behavior table, config env-vars, transport tradeoffs, run instructions
-- `docs/security.md` — audit integrity, threat model, pre-auth privacy (login page anonymity is separate; the bridge sits behind auth)
-- `docs/install.md#audit-log` — Helm values to enable syslog-bridge, auth-header Secret wiring
+- [`README.md`](README.md) — behavior table, config env-vars, transport tradeoffs, run instructions
+- [`docs/security.md`](https://github.com/GameplanePanel/Gameplane/blob/master/docs/security.md) — audit integrity, threat model, pre-auth privacy (login page anonymity is separate; the bridge sits behind auth)
+- [`docs/install.md#audit-log`](https://github.com/GameplanePanel/Gameplane/blob/master/docs/install.md#audit-log) — Helm values to enable syslog-bridge, auth-header Secret wiring
 - API audit webhook sink (`api/internal/audit/audit.go`) — `WebhookSink` calls `POST http://gameplane-audit-syslog-bridge.<namespace>.svc:8514/` with audit events
