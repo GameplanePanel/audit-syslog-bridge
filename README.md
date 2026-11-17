@@ -1,11 +1,13 @@
 # audit-syslog-bridge
 
+> This repository is checked out as the `audit-syslog-bridge/` submodule of [GameplanePanel/Gameplane](https://github.com/GameplanePanel/Gameplane). Paths such as `docs/`, `operator/`, `api/`, `charts/` and `web/` below refer to that repository.
+
 The **audit-syslog-bridge** [optional] is a tiny, generic **HTTP-JSON → syslog** relay. It accepts an HTTP `POST` whose
 body is a single JSON document and re-emits that document as an
 [RFC 5424](https://www.rfc-editor.org/rfc/rfc5424) syslog message to a
 configured collector (TCP, TCP over TLS, or UDP).
 
-It exists so Gameplane's [audit webhook sink](../docs/install.md#audit-log) can
+It exists so Gameplane's [audit webhook sink](https://github.com/GameplanePanel/Gameplane/blob/master/docs/install.md#audit-log) can
 reach a syslog/SIEM endpoint, but it is deliberately **schema-agnostic**: it
 forwards the received body verbatim as the syslog `MSG`, so it works for any
 JSON-webhook source, not just audit events. Nothing in it is Gameplane-specific.
@@ -77,7 +79,7 @@ same Secret as the API's webhook token). Without it the relay accepts any POST.
 
 The chart deploys this automatically when you set
 `api.audit.webhook.syslogBridge.enabled=true` and a collector address — see the
-[install docs](../docs/install.md#audit-log). Standalone:
+[install docs](https://github.com/GameplanePanel/Gameplane/blob/master/docs/install.md#audit-log). Standalone:
 
 ```sh
 docker run -e SYSLOG_ADDR=syslog.example:514 \
