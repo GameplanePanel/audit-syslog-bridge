@@ -42,7 +42,7 @@ Single flat package (`main`): `main.go` (relay + config + server logic), `bridge
 - TLS: wraps TCP in verified TLS 1.2+; `SYSLOG_TLS=true` (requires `SYSLOG_NETWORK=tcp`)
 
 **Auth:**
-- Optional bearer token: if `AUTH_HEADER` environment variable is set, the HTTP request `Authorization` header must match exactly (constant-time comparison); absence of the env var = any POST accepted
+- Optional bearer token: if `AUTH_HEADER` environment variable is set, the HTTP request `Authorization` header must match exactly (constant-time comparison of SHA-256 digests); without it the relay refuses to start unless `ALLOW_UNAUTHENTICATED=true`, which accepts any POST
 
 ## Key invariants
 
@@ -61,7 +61,7 @@ Single flat package (`main`): `main.go` (relay + config + server logic), `bridge
 
 ## Security considerations
 
-- **Auth boundary:** optional bearer token (`AUTH_HEADER` env var) gates who may inject records (constant-time comparison; absence = open)
+- **Auth boundary:** optional bearer token (`AUTH_HEADER` env var) gates who may inject records (constant-time comparison; required unless `ALLOW_UNAUTHENTICATED=true` opts in to an open intake)
 - **TLS transport:** `SYSLOG_TLS=true` wraps the TCP connection in verified TLS 1.2+, protecting audit events in transit
 - **Trust boundary:** API ← audit-syslog-bridge ← SIEM/syslog collector. The API rate-limits webhook submissions; the bridge forwards verbatim and is stateless, so it does not amplify or replay events
 - **DoS mitigation:** inbound body capped at 64 KiB; each request must arrive in full (headers and body) within 15 s (`http.Server.ReadTimeout`, with a 10 s header bound) and idle keep-alive connections close after 120 s; the per-frame write deadline bounds the collector side, so a misbehaving client/collector cannot wedge the process
