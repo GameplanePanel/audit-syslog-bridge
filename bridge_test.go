@@ -983,3 +983,26 @@ func TestNewHTTPServer_BoundsEveryPhase(t *testing.T) {
 		t.Errorf("short bound: header=%v read=%v, want 1s for both", short.ReadHeaderTimeout, short.ReadTimeout)
 	}
 }
+
+func TestBuildSyslogStripsControlChars(t *testing.T) {
+	ts := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	got := buildSyslog(13, ts, "h", "app", "a\x1b[2Jb\x00c\td\x7fe")
+	want := "<13>1 2026-01-02T03:04:05.000Z h app - - - a [2Jb c d e"
+	if got != want {
+		t.Errorf("buildSyslog =\n %q\nwant\n %q", got, want)
+	}
+}
+
+// A request that is waiting for the forwarder must return once its context
+// ends, rather than queue behind a busy connection forever.
+func TestForwarderSendHonoursContextWhileBusy(t *testing.T) {
+	f := newForwarder("tcp", "127.0.0.1:1", false, time.Second)
+	f.gate <- struct{}{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := f.send(ctx, []byte("x"))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("send error = %v, want one wrapping context.Canceled", err)
+	}
+}

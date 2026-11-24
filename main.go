@@ -11,6 +11,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
 	"errors"
@@ -212,7 +213,7 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.authHeader != "" &&
-		subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte(s.authHeader)) != 1 {
+		!authMatches(r.Header.Get("Authorization"), s.authHeader) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -238,12 +239,23 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// authMatches compares the presented Authorization header with the configured
+// value by SHA-256 digest, so the comparison time does not reveal the expected
+// token's length.
+func authMatches(got, want string) bool {
+	g := sha256.Sum256([]byte(got))
+	w := sha256.Sum256([]byte(want))
+	return subtle.ConstantTimeCompare(g[:], w[:]) == 1
+}
+
 // buildSyslog renders one RFC 5424 message:
 //
 //	<PRI>1 TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG
 //
 // PROCID, MSGID and STRUCTURED-DATA are nil ("-"); MSG carries the JSON body
-// collapsed to a single line so it stays one syslog record.
+// collapsed to a single line so it stays one syslog record. Every control
+// character (C0, DEL and C1) in the body is replaced by a space, so a body
+// cannot inject terminal escapes or extra records.
 func buildSyslog(pri int, ts time.Time, host, app, msg string) string {
 	if host == "" {
 		host = "-"
@@ -251,7 +263,12 @@ func buildSyslog(pri int, ts time.Time, host, app, msg string) string {
 	if app == "" {
 		app = "-"
 	}
-	msg = strings.NewReplacer("\n", " ", "\r", " ").Replace(msg)
+	msg = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return ' '
+		}
+		return r
+	}, msg)
 	return fmt.Sprintf("<%d>1 %s %s %s - - - %s",
 		pri, ts.UTC().Format("2006-01-02T15:04:05.000Z07:00"), host, app, msg)
 }
@@ -280,12 +297,16 @@ type forwarder struct {
 	// certificate instead of the system root pool.
 	tlsConfig *tls.Config
 
+	// gate is a one-slot semaphore taken before mu so a waiting request gives up
+	// when its context ends instead of queuing forever behind a hung collector.
+	gate chan struct{}
+
 	mu   sync.Mutex
 	conn net.Conn
 }
 
 func newForwarder(network, addr string, useTLS bool, dialTimeout time.Duration) *forwarder {
-	return &forwarder{network: network, addr: addr, useTLS: useTLS, dialTimeout: dialTimeout}
+	return &forwarder{network: network, addr: addr, useTLS: useTLS, dialTimeout: dialTimeout, gate: make(chan struct{}, 1)}
 }
 
 func (f *forwarder) dial(ctx context.Context) error {
@@ -312,6 +333,12 @@ func (f *forwarder) dial(ctx context.Context) error {
 }
 
 func (f *forwarder) send(ctx context.Context, frame []byte) error {
+	select {
+	case f.gate <- struct{}{}:
+	case <-ctx.Done():
+		return fmt.Errorf("wait for syslog connection: %w", ctx.Err())
+	}
+	defer func() { <-f.gate }()
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.conn != nil && !f.alive() {
