@@ -1006,3 +1006,26 @@ func TestForwarderSendHonoursContextWhileBusy(t *testing.T) {
 		t.Fatalf("send error = %v, want one wrapping context.Canceled", err)
 	}
 }
+
+func TestRequireAuth(t *testing.T) {
+	if err := requireAuth(config{}); err == nil {
+		t.Fatal("started without AUTH_HEADER and without ALLOW_UNAUTHENTICATED")
+	}
+	if err := requireAuth(config{authHeader: "Bearer x"}); err != nil {
+		t.Fatalf("rejected a configured token: %v", err)
+	}
+	if err := requireAuth(config{allowUnauth: true}); err != nil {
+		t.Fatalf("rejected an explicit opt-in: %v", err)
+	}
+}
+
+func TestLoadConfig_AllowUnauthenticated(t *testing.T) {
+	t.Setenv("ALLOW_UNAUTHENTICATED", "true")
+	if !loadConfig().allowUnauth {
+		t.Fatal("ALLOW_UNAUTHENTICATED=true not read")
+	}
+	t.Setenv("ALLOW_UNAUTHENTICATED", "yes")
+	if loadConfig().allowUnauth {
+		t.Fatal("only the exact value true may open the intake")
+	}
+}

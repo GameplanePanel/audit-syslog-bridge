@@ -102,15 +102,18 @@ const (
 const livenessProbe = 5 * time.Millisecond
 
 type config struct {
-	listen      string
-	syslogAddr  string
-	network     string // tcp | udp
-	useTLS      bool
-	appName     string
-	facility    string
-	severity    string
-	hostname    string
-	authHeader  string
+	listen     string
+	syslogAddr string
+	network    string // tcp | udp
+	useTLS     bool
+	appName    string
+	facility   string
+	severity   string
+	hostname   string
+	authHeader string
+	// allowUnauth keeps the old open intake when AUTH_HEADER is empty. It
+	// must be asked for explicitly (ALLOW_UNAUTHENTICATED=true).
+	allowUnauth bool
 	dialTimeout time.Duration
 	readTimeout time.Duration
 }
@@ -126,6 +129,7 @@ func loadConfig() config {
 		severity:    envOr("SEVERITY", "info"),
 		hostname:    envOr("SYSLOG_HOSTNAME", ""),
 		authHeader:  envOr("AUTH_HEADER", ""),
+		allowUnauth: envOr("ALLOW_UNAUTHENTICATED", "") == "true",
 		dialTimeout: 5 * time.Second,
 		readTimeout: defaultReadTimeout,
 	}
@@ -427,9 +431,25 @@ func (f *forwarder) write(frame []byte) error {
 // run wires OS signal handling to serve. main's thin wrapper; the testable
 // lifecycle lives in serve.
 func run(cfg config) error {
+	if err := requireAuth(cfg); err != nil {
+		return err
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	return serve(ctx, cfg)
+}
+
+// requireAuth refuses to start an intake anyone in the cluster could post
+// forged audit records to: AUTH_HEADER must be set unless the operator opts in
+// to an unauthenticated relay with ALLOW_UNAUTHENTICATED=true.
+func requireAuth(cfg config) error {
+	if cfg.authHeader == "" && !cfg.allowUnauth {
+		return errors.New("AUTH_HEADER is required; set ALLOW_UNAUTHENTICATED=true to accept unauthenticated POSTs")
+	}
+	if cfg.authHeader == "" {
+		slog.Warn("AUTH_HEADER is not set: accepting unauthenticated POSTs because ALLOW_UNAUTHENTICATED=true")
+	}
+	return nil
 }
 
 // serve builds the relay and runs the HTTP server until ctx is cancelled (then

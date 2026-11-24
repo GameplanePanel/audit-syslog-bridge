@@ -59,7 +59,8 @@ idle keep-alive connections close after 120 s.
   (for example one with per-record acks).
 
 `AUTH_HEADER` gates who may inject records — set it (the chart wires it from the
-same Secret as the API's webhook token). Without it the relay accepts any POST.
+same Secret as the API's webhook token). Without it the relay refuses to start
+unless `ALLOW_UNAUTHENTICATED=true` is set, which accepts any POST.
 
 ## Configuration (environment variables)
 
@@ -73,7 +74,8 @@ same Secret as the API's webhook token). Without it the relay accepts any POST.
 | `FACILITY` | `local0` | `kern`/`user`/`daemon`/`auth`/…/`local0`–`local7` |
 | `SEVERITY` | `info` | `emerg`/`alert`/`crit`/`err`/`warning`/`notice`/`info`/`debug` |
 | `SYSLOG_HOSTNAME` | OS hostname | RFC 5424 `HOSTNAME` field |
-| `AUTH_HEADER` | — | if set, inbound requests must carry this exact `Authorization` header |
+| `AUTH_HEADER` | — | required unless `ALLOW_UNAUTHENTICATED=true`; inbound requests must carry this exact `Authorization` header |
+| `ALLOW_UNAUTHENTICATED` | — | `true` lets the relay start without `AUTH_HEADER` and accept any POST |
 
 ## Run via the Helm chart
 
