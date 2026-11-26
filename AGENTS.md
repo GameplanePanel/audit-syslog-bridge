@@ -8,7 +8,7 @@ This repository holds the optional HTTP-JSON to RFC 5424 syslog relay behind the
 - **CI** is `.github/workflows/ci.yaml`, a thin caller of Gameplane's shared [`go-component.yaml`](https://github.com/GameplanePanel/Gameplane/blob/master/.github/workflows/go-component.yaml), pinned by SHA: lint with Gameplane's root `.golangci.yml` and `.hadolint.yaml` (no copy here), race tests on amd64 and arm64 with the `.testcoverage.yml` gate, govulncheck, and an image build. Dependabot runs in this repository.
 - **Images** `audit-syslog-bridge` (`Dockerfile`, built by `make image-audit-syslog`) are built and published from the Gameplane repository root: the Dockerfiles copy `audit-syslog-bridge/...` from that build context.
 - **Callers live in Gameplane:** paths such as `operator/`, `api/`, `charts/`, `docs/` and `web/` in `specs.md` and code comments refer to that repository.
-- **Shipping a change:** PR to `main` here → after it merges, bump the `audit-syslog-bridge` pointer in Gameplane (`git -C audit-syslog-bridge checkout <merged sha on main>`, `git add audit-syslog-bridge`) in a Gameplane PR. A user-visible change gets its `changelog/unreleased/` entry in that Gameplane PR.
+- **Shipping a change:** PR to `master` here → after it merges, bump the `audit-syslog-bridge` pointer in Gameplane (`git -C audit-syslog-bridge checkout <merged sha on master>`, `git add audit-syslog-bridge`) in a Gameplane PR. A user-visible change gets its `changelog/unreleased/` entry in that Gameplane PR.
 
 ## Rules
 
